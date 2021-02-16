@@ -1,11 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
+	"math/rand"
 	"net/http"
-	"regexp"
-	"strconv"
+	"os"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -54,123 +53,16 @@ var shots = allShots{
 	},
 }
 
-// func homeLink(w http.ResponseWriter, r *http.Request) {
-// 	fmt.Fprintf(w, "Welcome home!")
-// }
-// func createShot(w http.ResponseWriter, r *http.Request) {
-// 	var newShot shot
-// 	reqBody, err := ioutil.ReadAll(r.Body)
-// 	if err != nil {
-// 		fmt.Fprintf(w, "Kindly enter data with the event title and description only in order to update")
-// 	}
-// 	json.Unmarshal(reqBody, &newShot)
-// 	shots = append(shots, newShot)
-// 	w.WriteHeader(http.StatusCreated)
-//
-// 	json.NewEncoder(w).Encode(newShot)
-// }
-// func getCarShots(w http.ResponseWriter, r *http.Request) {
-// 	shotID := mux.Vars(r)["id"]
-//
-// 	for _, singleShot := range shots {
-// 		if singleShot.ID == shotID {
-// 			json.NewEncoder(w).Encode(singleShot)
-// 		}
-// 	}
-// }
-func getAllShots(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(shots)
-}
-
-// router.HandleFunc("/", homeLink)
-// router.HandleFunc("/shot", createShot).Methods("POST")
-// router.HandleFunc("/shots", getAllShots).Methods("GET")
-// router.HandleFunc("/shots/{id}", getCarShots).Methods("GET")
-
-func getViolationsByDateAndSpeed(w http.ResponseWriter, r *http.Request) {
-	configuration := GetConfig()
-	currentTime := time.Now().Format(time.Kitchen)
-	if timeCompare(currentTime, configuration.ServerStart) && timeCompare(configuration.ServerShutdown, currentTime) {
-		shotsDate := mux.Vars(r)["date"]
-		searchingSpeed, _ := strconv.ParseFloat(mux.Vars(r)["speed"], 64)
-		for _, singleShot := range shots {
-			shotSpeed, _ := strconv.ParseFloat(singleShot.Speed, 64)
-			if singleShot.Date == shotsDate && shotSpeed > searchingSpeed {
-				json.NewEncoder(w).Encode(singleShot)
-			}
-		}
-	}
-}
-func getBoundaryValuesOfSpeed(w http.ResponseWriter, r *http.Request) {
-	configuration := GetConfig()
-	currentTime := time.Now().Format(time.Kitchen)
-	if timeCompare(currentTime, configuration.ServerStart) && timeCompare(configuration.ServerShutdown, currentTime) {
-		shotsDate := mux.Vars(r)["date"]
-		min := 1000.0
-		max := 0.0
-		var tempShots [2]shot
-		for _, singleShot := range shots {
-			shotSpeed, _ := strconv.ParseFloat(singleShot.Speed, 64)
-			if singleShot.Date == shotsDate {
-				if shotSpeed > max {
-					max = shotSpeed
-					tempShots[1] = singleShot
-				}
-				if shotSpeed < min {
-					min = shotSpeed
-					tempShots[0] = singleShot
-				}
-			}
-		}
-		json.NewEncoder(w).Encode(tempShots[0])
-		json.NewEncoder(w).Encode(tempShots[1])
-	}
-}
-
-func getDayPart(str string) int {
-	if str[len(str)-2] == 'P' {
-		return 2
-	}
-	return 1
-}
-func timeParts(str string) [2]int {
-	re := regexp.MustCompile(`[-]?\d[\d,]*[\.]?[\d{2}]*`)
-	submatchall := re.FindAllString(str, -1)
-	var array [2]int
-	array[0], _ = strconv.Atoi(submatchall[0])
-	array[1], _ = strconv.Atoi(submatchall[1])
-	return array
-}
-func timeCompare(firstT, secondT string) bool {
-
-	if getDayPart(firstT) > getDayPart(secondT) {
-		return true
-	} else if getDayPart(firstT) < getDayPart(secondT) {
-		return false
-	}
-	firstTHours := timeParts(firstT)[0]
-	secondTHours := timeParts(secondT)[0]
-	if firstTHours > secondTHours {
-		return true
-	} else if firstTHours < secondTHours {
-		return false
-	}
-	firstTMins := timeParts(firstT)[1]
-	secondTMins := timeParts(secondT)[1]
-	if firstTMins >= secondTMins {
-		return true
-	}
-	return false
-}
-
 func main() {
+	rand.Seed(time.Now().UTC().UnixNano())
+	file, err := os.OpenFile("data.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer file.Close()
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/shots/{date}", getBoundaryValuesOfSpeed).Methods("GET")
 	router.HandleFunc("/shots/{date}/{speed}", getViolationsByDateAndSpeed).Methods("GET")
-	log.Fatal(http.ListenAndServe(":8080", router))
-	// _, err := http.Get("http://localhost:8080")
-	// if err != nil {
-	// 	fmt.Println("Server isn't running")
-	// 	time.Sleep(30000 * time.Millisecond)
-	// }
+	time.AfterFunc(4*time.Second, func() { log.Fatal(http.ListenAndServe(":8080", router)) })
+	writeNewShot(file)
 }
