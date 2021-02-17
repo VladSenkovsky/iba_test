@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"math"
 	"math/rand"
 	"os"
@@ -49,22 +50,28 @@ func generateSpeed() string {
 	return strconv.FormatFloat(math.Round(((float64(rand.Intn(700)+200))*0.1)*100)/100, 'f', 1, 64)
 }
 
+//constantly adding new shots with some interval while server is running
 func writeNewShot(f *os.File) {
-	time.Sleep(30 * time.Second)
-	f.WriteString("{Date:\"")
+	byteValue, _ := ioutil.ReadAll(f)
+	if byteValue != nil {
+		f.WriteString(", {\n\t\"Date\": \"")
+	} else {
+		f.WriteString("{\n\t\"Date\": \"")
+	}
 	year, month, day := time.Now().Date()
 	dateString := formatDate(year, month.String(), day)
 	f.WriteString(dateString)
 	hour, min, sec := time.Now().Clock()
 	timeString := formatTime(hour, min, sec)
-	f.WriteString("\",Time:\"")
+	f.WriteString("\",\n\t\"Time\": \"")
 	f.WriteString(timeString)
-	f.WriteString("\",ID:\"")
+	f.WriteString("\",\n\t\"ID\": \"")
 	idString := generateID()
 	f.WriteString(idString)
-	f.WriteString("\",Speed:\"")
+	f.WriteString("\",\n\t\"Speed\": \"")
 	speedString := generateSpeed()
 	f.WriteString(speedString)
-	f.WriteString("\",},\n")
+	f.WriteString("\"\n}")
+	time.Sleep(10 * time.Second)
 	writeNewShot(f)
 }
