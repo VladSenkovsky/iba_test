@@ -72,6 +72,6 @@ func writeNewShot(f *os.File) {
 	speedString := generateSpeed()
 	f.WriteString(speedString)
 	f.WriteString("\"\n}")
-	time.Sleep(10 * time.Second)
+	time.Sleep(300 * time.Second)
 	writeNewShot(f)
 }

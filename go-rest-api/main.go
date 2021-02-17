@@ -19,7 +19,7 @@ func main() {
 	}
 	defer file.Close()
 	router := mux.NewRouter().StrictSlash(true)
-
+	router.HandleFunc("/shot", createShot).Methods("POST")
 	router.HandleFunc("/shots/{date}", getBoundaryValuesOfSpeed).Methods("GET")
 	router.HandleFunc("/shots/{date}/{speed}", getViolationsByDateAndSpeed).Methods("GET")
 	time.AfterFunc(time.Second, func() { log.Fatal(http.ListenAndServe(":8080", router)) })

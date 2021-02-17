@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -19,6 +20,22 @@ type Shot struct {
 
 func inTimeSpan(start, end, check time.Time) bool {
 	return check.After(start) && check.Before(end)
+}
+
+func createShot(w http.ResponseWriter, r *http.Request) {
+	var newShot Shot
+	reqBody, _ := ioutil.ReadAll(r.Body)
+	json.Unmarshal(reqBody, &newShot)
+	post, _ := json.MarshalIndent(newShot, "", " ")
+	file, err := os.OpenFile("data.json", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	file.WriteString(", " + string(post))
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("Thanks for new shot!\n"))
+	json.NewEncoder(w).Encode(newShot)
 }
 
 //all shots that surpassed certain speed
@@ -45,6 +62,9 @@ func getViolationsByDateAndSpeed(w http.ResponseWriter, r *http.Request) {
 				json.NewEncoder(w).Encode(singleShot)
 			}
 		}
+	} else {
+		w.WriteHeader(503)
+		w.Write([]byte("Sorry but your request is currently unavailable.\nServer schedule:\n" + configuration.ServerStart + " - " + configuration.ServerShutdown))
 	}
 }
 
@@ -83,5 +103,8 @@ func getBoundaryValuesOfSpeed(w http.ResponseWriter, r *http.Request) {
 		}
 		json.NewEncoder(w).Encode(tempShots[0])
 		json.NewEncoder(w).Encode(tempShots[1])
+	} else {
+		w.WriteHeader(503)
+		w.Write([]byte("Sorry but your request is currently unavailable.\nServer schedule:\n" + configuration.ServerStart + " - " + configuration.ServerShutdown))
 	}
 }
